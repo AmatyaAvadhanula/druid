@@ -100,7 +100,7 @@ public class CuratorModule implements Module
     framework.getUnhandledErrorListenable().addListener((message, e) -> {
       final long startTime = System.currentTimeMillis();
       log.error(e, "Unhandled error in Curator, stopping server.");
-      final Thread halter = new Thread(
+      final Thread exiter = new Thread(
           () -> {
             try {
               Threads.sleepFor(30, TimeUnit.SECONDS);
@@ -109,15 +109,15 @@ public class CuratorModule implements Module
 
             }
             log.warn(
-                "Could not stop server within %,d millis after unhandled Curator error. Halting immediately.",
+                "Could not stop server within %,d millis after unhandled Curator error. Exiting immediately.",
                 System.currentTimeMillis() - startTime
             );
-            Runtime.getRuntime().halt(1);
+            Runtime.getRuntime().exit(1);
           },
           "halter-thread"
       );
-      halter.setDaemon(true);
-      halter.start();
+      exiter.setDaemon(true);
+      exiter.start();
       shutdown(lifecycle);
     });
 
