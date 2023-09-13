@@ -82,7 +82,9 @@ import org.apache.druid.segment.realtime.FireDepartment;
 import org.apache.druid.segment.realtime.FireDepartmentMetrics;
 import org.apache.druid.segment.realtime.appenderator.Appenderator;
 import org.apache.druid.segment.realtime.appenderator.AppenderatorDriverAddResult;
+import org.apache.druid.segment.realtime.appenderator.SegmentIdWithShardSpec;
 import org.apache.druid.segment.realtime.appenderator.SegmentsAndCommitMetadata;
+import org.apache.druid.segment.realtime.appenderator.StreamAppenderator;
 import org.apache.druid.segment.realtime.appenderator.StreamAppenderatorDriver;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
 import org.apache.druid.server.security.Access;
@@ -1523,6 +1525,31 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
     return endOffsets;
   }
 
+
+  @GET
+  @Path("/getCurrentSegments")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getCurrentSegments(
+      @Context final HttpServletRequest req
+  )
+  {
+    authorizationCheck(req, Action.WRITE);
+    return getCurrentSegments();
+  }
+
+  @POST
+  @Path("/updateSegmentMapping")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response updateSegmentMapping(
+      Map<String, Set<SegmentIdWithShardSpec>> idToNewIdsWithShardSpecsMap,
+      @Context final HttpServletRequest req
+  )
+  {
+    authorizationCheck(req, Action.WRITE);
+    return updateSegmentMapping(idToNewIdsWithShardSpecsMap);
+  }
+
   @POST
   @Path("/offsets/end")
   @Consumes(MediaType.APPLICATION_JSON)
@@ -1612,6 +1639,20 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
         parseExceptionHandler.getSavedParseExceptionReports()
     );
     return Response.ok(events).build();
+  }
+
+  private Response getCurrentSegments()
+  {
+    return Response.ok(((StreamAppenderator) appenderator).getCurrentSegments()).build();
+  }
+
+  @VisibleForTesting
+  public Response updateSegmentMapping(
+      Map<String, Set<SegmentIdWithShardSpec>> idToNewIdsWithShardSpecsMap
+  )
+  {
+    ((StreamAppenderator) appenderator).updateSegmentMapping(idToNewIdsWithShardSpecsMap);
+    return Response.ok().build();
   }
 
   @VisibleForTesting

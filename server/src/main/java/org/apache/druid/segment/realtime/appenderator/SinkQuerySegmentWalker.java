@@ -69,7 +69,9 @@ import org.apache.druid.utils.CloseableUtils;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
@@ -92,6 +94,8 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
   private final Cache cache;
   private final CacheConfig cacheConfig;
   private final CachePopulatorStats cachePopulatorStats;
+
+  private final Map<SegmentDescriptor, SegmentDescriptor> newSegmentIdToOriginal = new ConcurrentHashMap<>();
 
   public SinkQuerySegmentWalker(
       String dataSource,
@@ -182,7 +186,8 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
 
     Iterable<QueryRunner<T>> perSegmentRunners = Iterables.transform(
         specs,
-        descriptor -> {
+        newDescriptor -> {
+          final SegmentDescriptor descriptor = newSegmentIdToOriginal.getOrDefault(newDescriptor, newDescriptor);
           final PartitionChunk<Sink> chunk = sinkTimeline.findChunk(
               descriptor.getInterval(),
               descriptor.getVersion(),
@@ -348,5 +353,10 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
   public static String makeHydrantCacheIdentifier(FireHydrant input)
   {
     return input.getSegmentId() + "_" + input.getCount();
+  }
+
+  public void updateSegmentMapping(Map<SegmentDescriptor, SegmentDescriptor> newSegmentIdToOriginal)
+  {
+    this.newSegmentIdToOriginal.putAll(newSegmentIdToOriginal);
   }
 }

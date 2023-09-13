@@ -85,6 +85,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1024,6 +1025,43 @@ public class StreamAppenderator implements Appenderator
       Thread.currentThread().interrupt();
       throw new ISE("Failed to shutdown executors during close()");
     }
+  }
+
+  public void updateSegmentMapping(Map<String, Set<SegmentIdWithShardSpec>> segmentIdToNewIdShardSpecs)
+  {
+    final Map<SegmentDescriptor, SegmentDescriptor> segmentMapping = new HashMap<>();
+    final Map<String, SegmentIdWithShardSpec> idToIdShardSpecMapping = new HashMap<>();
+    for (SegmentIdWithShardSpec idShardSpec : sinks.keySet()) {
+      if (!droppingSinks.contains(idShardSpec)) {
+        idToIdShardSpecMapping.put(idShardSpec.toString(), idShardSpec);
+      }
+    }
+    segmentIdToNewIdShardSpecs.forEach(
+        (segmentId, newSegmentIdShardSpecs) -> {
+          final SegmentIdWithShardSpec oldSegmentIdShardSpec = idToIdShardSpecMapping.get(segmentId);
+          if (oldSegmentIdShardSpec != null) {
+            for (SegmentIdWithShardSpec newSegmentIdShardSpec : newSegmentIdShardSpecs) {
+              segmentMapping.put(
+                  newSegmentIdShardSpec.asSegmentId().toDescriptor(),
+                  oldSegmentIdShardSpec.asSegmentId().toDescriptor()
+              );
+            }
+          }
+        }
+    );
+    ((SinkQuerySegmentWalker) texasRanger).updateSegmentMapping(segmentMapping);
+  }
+
+  public Map<String, Set<SegmentIdWithShardSpec>> getCurrentSegments()
+  {
+    final Map<String, Set<SegmentIdWithShardSpec>> retVal = new HashMap<>();
+    for (SegmentIdWithShardSpec id : sinks.keySet()) {
+      if (droppingSinks.contains(id)) {
+        continue;
+      }
+      retVal.put(id.toString(), Collections.singleton(id));
+    }
+    return retVal;
   }
 
   private void lockBasePersistDirectory()
