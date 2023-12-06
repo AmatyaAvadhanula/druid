@@ -91,9 +91,4 @@ public class Limits
    * MSQ is able to run async queries
    */
   public static final long MAX_SELECT_RESULT_ROWS = 3_000;
-
-  /**
-   * Max number of partition buckets for ingestion queries.
-   */
-  public static final int MAX_PARTITION_BUCKETS = 5_000;
 }
