@@ -35,7 +35,6 @@ import org.apache.druid.annotations.SuppressFBWarnings;
 import org.apache.druid.common.utils.IdUtils;
 import org.apache.druid.error.DruidException;
 import org.apache.druid.error.EntryAlreadyExists;
-import org.apache.druid.indexer.RunnerTaskState;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.Counters;
@@ -672,8 +671,6 @@ public class TaskQueue
     // Save status to metadata store first, so if we crash while doing the rest of the shutdown, our successor
     // remembers that this task has completed.
     try {
-      //The code block is only called when a task completes,
-      //and we need to check to make sure the metadata store has the correct status stored.
       final Optional<TaskStatus> previousStatus = taskStorage.getStatus(task.getId());
       if (!previousStatus.isPresent() || !previousStatus.get().isRunnable()) {
         log.makeAlert("Ignoring notification for already-complete task").addData("task", task.getId()).emit();
@@ -945,20 +942,6 @@ public class TaskQueue
     }
     finally {
       giant.unlock();
-    }
-  }
-
-  /**
-   * Gets the current status of this task either from the {@link TaskRunner}
-   * or from the {@link TaskStorage} (if not available with the TaskRunner).
-   */
-  public Optional<TaskStatus> getTaskStatus(final String taskId)
-  {
-    RunnerTaskState runnerTaskState = taskRunner.getRunnerTaskState(taskId);
-    if (runnerTaskState != null && runnerTaskState != RunnerTaskState.NONE) {
-      return Optional.of(TaskStatus.running(taskId).withLocation(taskRunner.getTaskLocation(taskId)));
-    } else {
-      return taskStorage.getStatus(taskId);
     }
   }
 

@@ -27,9 +27,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -901,7 +903,14 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         Preconditions.checkNotNull(id, "id");
         Optional<TaskRunner> taskRunner = taskMaster.getTaskRunner();
         if (taskRunner.isPresent()) {
-          return taskRunner.get().getTaskLocation(id);
+          Optional<? extends TaskRunnerWorkItem> item = Iterables.tryFind(
+              taskRunner.get().getRunningTasks(),
+              (Predicate<TaskRunnerWorkItem>) taskRunnerWorkItem -> id.equals(taskRunnerWorkItem.getTaskId())
+          );
+
+          if (item.isPresent()) {
+            return item.get().getLocation();
+          }
         } else {
           log.error("Failed to get task runner because I'm not the leader!");
         }
@@ -912,12 +921,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       @Override
       public Optional<TaskStatus> getTaskStatus(String id)
       {
-        final Optional<TaskQueue> taskQueue = taskMaster.getTaskQueue();
-        if (taskQueue.isPresent()) {
-          return taskQueue.get().getTaskStatus(id);
-        } else {
-          return taskStorage.getStatus(id);
-        }
+        return taskStorage.getStatus(id);
       }
     };
 

@@ -19,7 +19,7 @@
 
 package org.apache.druid.msq.indexing.client;
 
-import com.google.common.collect.ImmutableSet;
+import org.apache.druid.client.indexing.TaskStatusResponse;
 import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskStatus;
@@ -65,13 +65,10 @@ public class IndexerWorkerManagerClient implements WorkerManagerClient
   @Override
   public TaskLocation location(String workerId)
   {
-    final TaskStatus response = FutureUtils.getUnchecked(
-        overlordClient.taskStatuses(ImmutableSet.of(workerId)),
-        true
-    ).get(workerId);
+    final TaskStatusResponse response = FutureUtils.getUnchecked(overlordClient.taskStatus(workerId), true);
 
-    if (response != null) {
-      return response.getLocation();
+    if (response.getStatus() != null) {
+      return response.getStatus().getLocation();
     } else {
       return TaskLocation.unknown();
     }
