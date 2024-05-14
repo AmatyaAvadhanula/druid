@@ -20,7 +20,6 @@
 package org.apache.druid.msq.indexing.client;
 
 import com.google.common.collect.ImmutableSet;
-import org.apache.druid.client.indexing.TaskStatusResponse;
 import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskStatus;
@@ -38,7 +37,6 @@ import java.util.Set;
 public class IndexerWorkerManagerClient implements WorkerManagerClient
 {
   private final OverlordClient overlordClient;
-  private final TaskLocationFetcher locationFetcher = new TaskLocationFetcher();
 
   public IndexerWorkerManagerClient(final OverlordClient overlordClient)
   {
@@ -67,39 +65,21 @@ public class IndexerWorkerManagerClient implements WorkerManagerClient
   @Override
   public TaskLocation location(String workerId)
   {
-    return locationFetcher.getLocation(workerId);
+    final TaskStatus response = FutureUtils.getUnchecked(
+        overlordClient.taskStatuses(ImmutableSet.of(workerId)),
+        true
+    ).get(workerId);
+
+    if (response != null) {
+      return response.getLocation();
+    } else {
+      return TaskLocation.unknown();
+    }
   }
 
   @Override
   public void close()
   {
     // Nothing to do. The OverlordServiceClient is closed by the JVM lifecycle.
-  }
-
-  private class TaskLocationFetcher
-  {
-    TaskLocation getLocation(String workerId)
-    {
-      final TaskStatus taskStatus = FutureUtils.getUnchecked(
-          overlordClient.taskStatuses(ImmutableSet.of(workerId)),
-          true
-      ).get(workerId);
-
-      if (taskStatus != null
-          && !TaskLocation.unknown().equals(taskStatus.getLocation())) {
-        return taskStatus.getLocation();
-      }
-
-      // Retry with the single status API
-      final TaskStatusResponse statusResponse = FutureUtils.getUnchecked(
-          overlordClient.taskStatus(workerId),
-          true
-      );
-      if (statusResponse == null || statusResponse.getStatus() == null) {
-        return TaskLocation.unknown();
-      } else {
-        return statusResponse.getStatus().getLocation();
-      }
-    }
   }
 }
